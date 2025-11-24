@@ -415,7 +415,7 @@ const fetchBlockedShops = async () => {
                         <td className="px-6 py-4 text-sm text-gray-300">{item.address}</td>
                         <td className="px-6 py-4 text-sm text-gray-300">{item.phoneNumber}</td>
                         <td className="px-6 py-4 text-sm text-gray-300">{item.userName}</td>
-                        <td className="px-6 py-4 text-sm text-gray-300">{'•'.repeat(6)}</td>
+                        <td className="px-6 py-4 text-sm text-gray-300">{item.password}</td>
                         <td className="px-6 py-4 text-sm text-blue-400">{item.commission}</td>
                         <td className="px-6 py-4 text-sm text-green-400 font-medium">₹{item.balance}</td>
                         <td className="px-6 py-4 text-sm">
