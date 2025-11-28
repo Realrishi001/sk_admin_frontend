@@ -18,7 +18,7 @@ export default function ClaimedTicketsPage() {
   const fetchClaimedTickets = async () => {
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:3085/api/get-claimed-tickets", {});
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/get-claimed-tickets`, {});
       const result = res.data?.distributedData || {};
 
       setData(result);

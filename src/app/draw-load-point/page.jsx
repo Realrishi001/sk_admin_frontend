@@ -557,71 +557,24 @@ const renderModalSeriesTable = (seriesKey, color, title) => {
     <h2 className="text-xl font-semibold text-white">Filter Options</h2>
   </div>
 <button
- onClick={async () => {
-  // Always open with current time
-  const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
-  const date = new Date(now);
-  const hours = date.getHours();
-  const minutes = date.getMinutes() >= 30 ? 30 : 0;
-  const h12 = hours % 12 || 12;
-  const ampm = hours < 12 ? "AM" : "PM";
-  const formatted = `${String(h12).padStart(2, "0")}:${String(minutes).padStart(2, "0")} ${ampm}`;
-  setModalDrawTime(formatted);
-  setIsDrawModalOpen(true);
+  onClick={() => {
+    // set default draw time to current slot and open modal only
+    const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+    const date = new Date(now);
+    const hours = date.getHours();
+    const minutes = date.getMinutes() >= 30 ? 30 : 0;
+    const h12 = hours % 12 || 12;
+    const ampm = hours < 12 ? "AM" : "PM";
+    const formatted = `${String(h12).padStart(2, "0")}:${String(minutes).padStart(2, "0")} ${ampm}`;
 
-  // 🔹 Fetch tickets by admin for this drawTime (POST with body)
-  try {
-    setModalLoading(true);
-    const res = await axios.post(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/tickets-by-admin`,
-      { drawTime: formatted },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    const tickets = res.data.tickets || [];
-    setAllDrawTickets(tickets);
-
-    // Extract unique shop names from tickets (for select)
-    const uniqueShops = [...new Set(tickets.map(t => t.shopName))];
-    setAdmins(uniqueShops.map(shop => ({ shopName: shop })));
-
-    // Pre-fill modalData with ALL shops' draws for the modalDrawTime
-    // Flatten draws for this drawTime across all shops
-    const drawData = tickets.flatMap(shop => shop.draws || []);
-    const matches = drawData.filter(d => d.drawTime === formatted);
-
-    const series10 = matches.flatMap(d => d.series10.map(s => ({ shop: tickets.find(t => (t.draws || []).some(dr => dr === d))?.shopName || '', ...s })));
-    const series30 = matches.flatMap(d => d.series30.map(s => ({ shop: tickets.find(t => (t.draws || []).some(dr => dr === d))?.shopName || '', ...s })));
-    const series50 = matches.flatMap(d => d.series50.map(s => ({ shop: tickets.find(t => (t.draws || []).some(dr => dr === d))?.shopName || '', ...s })));
-
-    // A safer way: build series arrays by iterating shops
-    const s10 = [];
-    const s30 = [];
-    const s50 = [];
-    for (const shop of tickets) {
-      for (const d of shop.draws || []) {
-        if (d.drawTime !== formatted) continue;
-        // attach shop name into each row
-        (d.series10 || []).forEach(it => s10.push({ shop: shop.shopName, ...it }));
-        (d.series30 || []).forEach(it => s30.push({ shop: shop.shopName, ...it }));
-        (d.series50 || []).forEach(it => s50.push({ shop: shop.shopName, ...it }));
-      }
-    }
-
-    setModalData({ series10: s10, series30: s30, series50: s50 });
-
-  } catch (err) {
-    console.error("Error fetching draw summary data:", err);
-    setAllDrawTickets([]);
-    setAdmins([]);
-    setModalData({ series10: [], series30: [], series50: [] });
-  } finally {
-    setModalLoading(false);
-  }
-}}
-
-  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2 px-5 rounded-sm hover:from-purple-700 hover:to-pink-700 flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+    setModalDrawTime(formatted); // prefill modal draw time
+    setSelectedAdmin("");        // reset shop filter
+    setModalData({ series10: [], series30: [], series50: [] }); // clear old data
+    setAllDrawTickets([]);       // clear old tickets
+    setIsDrawModalOpen(true);    // open modal — no network call here
+  }}
+  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2 px-5 rounded-sm ..."
 >
-  <FaSearch className="text-sm" />
   <span className="font-semibold text-sm">View Draw Summary</span>
 </button>
 
@@ -759,68 +712,170 @@ const renderModalSeriesTable = (seriesKey, color, title) => {
         </div>
       </div>
 
-      {isDrawModalOpen && (
-  <div className="fixed inset-0  bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-    <div className="bg-gradient-to-b from-slate-900 to-slate-800 rounded-2xl p-8 w-full max-w-6xl shadow-2xl border border-slate-700 relative">
+{isDrawModalOpen && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="bg-gradient-to-b from-slate-900 to-slate-800 rounded-2xl p-6 w-full max-w-6xl shadow-2xl border border-slate-700 relative">
+      {/* Close */}
       <button
         onClick={() => setIsDrawModalOpen(false)}
         className="absolute top-4 right-4 text-slate-400 hover:text-white text-xl"
       >
         ✖
       </button>
-      <h2 className="text-3xl font-bold text-center bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-6">
+
+      <h2 className="text-2xl md:text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 mb-4">
         Draw Summary
       </h2>
 
-      <div className="flex flex-col md:flex-row gap-4 mb-8 justify-center">
-      <select
-        value={modalDrawTime}
-        onChange={(e) => setModalDrawTime(e.target.value)}
-        className="flex-1 px-4 py-3 bg-slate-800 border transparent-scrollbar border-slate-600 text-white rounded-lg"
-      >
-        <option value="">Select Draw Time</option>
-        {[...Array(96).keys()].map((i) => {
-          const hours = Math.floor(i / 4);
-          const minutes = (i % 4) * 15;
-          const hours12 = hours % 12 === 0 ? 12 : hours % 12;
-          const ampm = hours < 12 ? "AM" : "PM";
-          const minuteStr = minutes.toString().padStart(2, "0");
-          const timeStr = `${hours12}:${minuteStr} ${ampm}`;
-          return (
-            <option key={i} value={timeStr}>
-              {timeStr}
-            </option>
-          );
-        })}
-      </select>
+      {/* Controls: DrawTime + Shop + Search */}
+      <div className="flex flex-col md:flex-row gap-3 items-center justify-center mb-6">
+        {/* Draw Time select */}
 <select
-  value={selectedAdmin}
-  onChange={(e) => setSelectedAdmin(e.target.value)}
-  className="flex-1 px-4 py-3 bg-slate-800 border border-slate-600 text-white rounded-lg"
+  value={modalDrawTime}
+  onChange={(e) => setModalDrawTime(e.target.value)}
+  className="w-full md:w-1/3 px-4 py-2 transparent-scrollbar bg-slate-800 border border-slate-600 text-white rounded-md"
 >
-  <option value="">Select Shop</option>
-  {admins.map((a) => (
-    <option key={a.shopName} value={a.shopName}>{a.shopName}</option>
-  ))}
+  <option value="">Select Draw Time</option>
+
+  {[...Array(96).keys()].map((i) => {
+    const hours24 = Math.floor(i / 4);
+    const minutes = (i % 4) * 15;
+
+    const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+
+    const hourStr = String(hours12).padStart(2, "0");  // FIXED
+    const minuteStr = String(minutes).padStart(2, "0");
+    const ampm = hours24 < 12 ? "AM" : "PM";
+
+    const timeStr = `${hourStr}:${minuteStr} ${ampm}`;
+
+    return (
+      <option key={i} value={timeStr}>
+        {timeStr}
+      </option>
+    );
+  })}
 </select>
 
 
-        <button
-          onClick={handleModalSearch}
-          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 font-semibold"
+        {/* Shop select (All by default). Populated after search */}
+        <select
+          value={selectedAdmin}
+          onChange={(e) => setSelectedAdmin(e.target.value)}
+          className="w-full md:w-1/3 px-4 py-2 bg-slate-800 border border-slate-600 text-white rounded-md"
         >
-          Search
+          <option value="">All Shops</option>
+          {admins.map((a) => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
+
+        {/* Search Button */}
+        <button
+          onClick={async () => {
+            // Validate
+            if (!modalDrawTime) {
+              alert("Please select a draw time first.");
+              return;
+            }
+
+            // Call backend to get tickets for the drawTime
+            setModalLoading(true);
+            setModalData({ series10: [], series30: [], series50: [] });
+            setAllDrawTickets([]);
+            setAdmins([]);
+
+            try {
+              // NOTE: change endpoint name if your route is different
+              const res = await axios.post(
+                `${process.env.NEXT_PUBLIC_API_BASE_URL}/tickets-by-admin`,
+                { drawTime: modalDrawTime },
+              );
+
+              console.log(modalDrawTime);
+
+              const tickets = res.data.tickets || [];
+              setAllDrawTickets(tickets);
+
+              // Build unique shop list for select
+              const uniqueShops = [...new Set(tickets.map(t => t.shopName).filter(Boolean))];
+              setAdmins(uniqueShops);
+
+              // Flatten series arrays across shops, attach shop name
+              const s10 = [];
+              const s30 = [];
+              const s50 = [];
+
+              for (const shop of tickets) {
+                const shopName = shop.shopName || "Unknown Shop";
+                for (const d of shop.draws || []) {
+                  if (d.drawTime !== modalDrawTime) continue;
+                  (d.series10 || []).forEach(it => s10.push({ shop: shopName, ...it }));
+                  (d.series30 || []).forEach(it => s30.push({ shop: shopName, ...it }));
+                  (d.series50 || []).forEach(it => s50.push({ shop: shopName, ...it }));
+                }
+              }
+
+              // If a shop is selected, filter now; otherwise keep all
+              const applyFilter = (arr) => selectedAdmin ? arr.filter(x => x.shop === selectedAdmin) : arr;
+
+              setModalData({
+                series10: applyFilter(s10),
+                series30: applyFilter(s30),
+                series50: applyFilter(s50),
+              });
+
+              // Reset modal pagination state (if you use it)
+              setModalTableStates({
+                series10: { limit: 10, page: 1 },
+                series30: { limit: 10, page: 1 },
+                series50: { limit: 10, page: 1 },
+              });
+
+            } catch (err) {
+              console.error("Error fetching draw summary:", err);
+              setAllDrawTickets([]);
+              setAdmins([]);
+              setModalData({ series10: [], series30: [], series50: [] });
+              alert("Failed to load draw summary. Check console.");
+            } finally {
+              setModalLoading(false);
+            }
+          }}
+          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-md"
+        >
+          {modalLoading ? "Searching..." : "Search"}
         </button>
       </div>
 
+      {/* Loading or Empty */}
       {modalLoading ? (
-        <p className="text-center text-slate-400 py-6">Loading data...</p>
+        <div className="text-center py-8 text-slate-400">Loading data...</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {renderModalSeriesTable("series10", "text-purple-400", "10 Series")}
-          {renderModalSeriesTable("series30", "text-pink-400", "30 Series")}
-          {renderModalSeriesTable("series50", "text-blue-400", "50 Series")}
-        </div>
+        <>
+          {/* Top summary: total counts for modal (optional) */}
+          <div className="flex gap-4 justify-center mb-4">
+            <div className="bg-slate-800 p-3 rounded-md text-center">
+              <div className="text-sm text-slate-400">10 Series</div>
+              <div className="text-lg font-bold text-white">{(modalData.series10 || []).length}</div>
+            </div>
+            <div className="bg-slate-800 p-3 rounded-md text-center">
+              <div className="text-sm text-slate-400">30 Series</div>
+              <div className="text-lg font-bold text-white">{(modalData.series30 || []).length}</div>
+            </div>
+            <div className="bg-slate-800 p-3 rounded-md text-center">
+              <div className="text-sm text-slate-400">50 Series</div>
+              <div className="text-lg font-bold text-white">{(modalData.series50 || []).length}</div>
+            </div>
+          </div>
+
+          {/* Modal tables */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {renderModalSeriesTable("series10", "text-purple-400", "10 Series")}
+            {renderModalSeriesTable("series30", "text-pink-400", "30 Series")}
+            {renderModalSeriesTable("series50", "text-blue-400", "50 Series")}
+          </div>
+        </>
       )}
     </div>
   </div>
