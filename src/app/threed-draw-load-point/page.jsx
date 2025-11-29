@@ -44,7 +44,65 @@ const Page = () => {
     ticketsByRange: {}
   });
 
+const [showModal, setShowModal] = useState(false);
+
+const [winningRows, setWinningRows] = useState(
+  Array.from({ length: 10 }, () => ({
+    number: "",
+    type: "STR"
+  }))
+);
+
   const [tableStates, setTableStates] = useState({});
+
+  const [showResultModal, setShowResultModal] = useState(false);
+
+const [resultRows, setResultRows] = useState(
+  Array.from({ length: 10 }, () => ({
+    number: "",
+    type: "STR",
+    amount: ""
+  }))
+);
+
+
+const updateResultRow = (index, field, value) => {
+  setResultRows(rows =>
+    rows.map((r, i) => i === index ? { ...r, [field]: value } : r)
+  );
+};
+
+const removeResultRow = (index) => {
+  setResultRows(rows => rows.filter((_, i) => i !== index));
+};
+
+const addResultRow = () => {
+  setResultRows(rows => [...rows, { number: "", type: "STR", amount: "" }]);
+};
+
+const shuffleRows = () => {
+  setResultRows(rows => [...rows].sort(() => Math.random() - 0.5));
+};
+
+const saveWinningResult = async () => {
+  try {
+    const payload = {
+      winningDate: date,
+      winningTime: new Date().toISOString(),
+      results: resultRows,
+    };
+
+    await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/save-winning`, payload);
+
+    alert("3-D Winning Result Saved!");
+    setShowResultModal(false);
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to save winning result.");
+  }
+};
+
 
   // fetch data from backend
   const fetchAll = async (selectedDate) => {
@@ -78,6 +136,53 @@ const Page = () => {
   const handleSearch = () => {
     fetchAll(date);
   };
+
+  const handleShuffle = () => {
+  const random = () => String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+
+  setWinningRows((prev) =>
+    prev.map((r) => ({
+      ...r,
+      number: random(),
+    }))
+  );
+};
+
+const handleSaveWinning = async () => {
+  try {
+    const filtered = winningRows.filter((r) => r.number.length === 3);
+
+    if (filtered.length === 0) {
+      alert("Please enter at least 1 winning number");
+      return;
+    }
+
+    // calculate totals
+    const totalAmount = filtered.length * 1; // You can change formula
+    const totalPoints = filtered.length * 10; // You can change formula
+
+    const payload = {
+      winningDate: date,
+      winningTime: new Date().toISOString(),
+      winningNumbers: filtered,
+      totalAmount,
+      totalPoints,
+    };
+
+    const res = await axios.post(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/save-winning`,
+      payload
+    );
+
+    alert("Winning numbers saved!");
+    setShowModal(false);
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to save winning numbers");
+  }
+};
+
 
   const handleLimitChange = (range, value) => {
     setTableStates(s => ({ ...s, [range]: { ...s[range], limit: value, page: 1 } }));
@@ -182,11 +287,25 @@ const Page = () => {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
-              <h1 className="text-5xl w-full text-center font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
-                Printed 3D Tickets
-              </h1>
+<div className="mb-8 w-full">
+  <div className="flex items-center justify-between w-full mb-2">
+    <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
+      Printed 3D Tickets
+    </h1>
+
+    {/* 3D RESULT BUTTON */}
+    <button
+      onClick={() => setShowModal(true)}
+      className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:scale-105 transition"
+    >
+      3D Result
+    </button>
+  </div>
+</div>
+
+
             </div>
-            <p className="text-slate-600 text-lg w-full text-center">Manage and track your printed lottery tickets</p>
+           
           </div>
 
           {/* Filter Section */}
@@ -271,6 +390,100 @@ const Page = () => {
           </div>
         </div>
       </div>
+
+{showModal && (
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-gradient-to-br from-gray-50 to-white w-full max-w-md rounded-xl shadow-2xl border border-gray-200">
+      
+      {/* HEADER */}
+      <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gradient-to-r from-gray-100 to-gray-50 rounded-t-xl">
+        <div>
+          <h2 className="text-lg font-bold text-gray-800">Winning Numbers</h2>
+          <p className="text-xs text-gray-600 mt-1">Enter the winning combination</p>
+        </div>
+        <button
+          onClick={() => setShowModal(false)}
+          className="w-7 h-7 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-600 hover:text-gray-800 transition-colors"
+        >
+          ×
+        </button>
+      </div>
+
+      {/* INPUT ROWS - Compact */}
+      <div className="p-3 space-y-2 max-h-60 overflow-y-auto">
+        {winningRows.map((row, idx) => (
+          <div key={idx} className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-2 hover:border-blue-300 transition-colors">
+            
+            {/* Number Input - Compact */}
+            <input
+              value={row.number}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "").slice(0, 3);
+                setWinningRows((p) => {
+                  const copy = [...p];
+                  copy[idx].number = value;
+                  return copy;
+                });
+              }}
+              className="w-16 px-2 py-1 border border-gray-300 rounded text-center font-bold text-sm bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              placeholder="000"
+              maxLength={3}
+            />
+
+            {/* Type Select - Compact */}
+            <select
+              value={row.type}
+              onChange={(e) =>
+                setWinningRows((p) => {
+                  const copy = [...p];
+                  copy[idx].type = e.target.value;
+                  return copy;
+                })
+              }
+              className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="STR">STRAIGHT</option>
+              <option value="BOX">BOX</option>
+              <option value="FP">FRONT PAIR</option>
+              <option value="BP">BACK PAIR</option>
+              <option value="SP">SPLIT PAIR</option>
+              <option value="AP">ANY PAIR</option>
+            </select>
+          </div>
+        ))}
+      </div>
+
+      {/* BUTTONS */}
+      <div className="flex gap-2 p-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+        
+        {/* SHUFFLE */}
+        <button
+          onClick={handleShuffle}
+          className="flex-1 px-3 py-2 rounded-lg bg-gray-600 hover:bg-gray-700 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-1"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Shuffle
+        </button>
+
+        {/* SAVE */}
+        <button
+          onClick={handleSaveWinning}
+          className="flex-1 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-sm transition-colors flex items-center justify-center gap-1"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          Save Result
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
+
+
     </div>
   );
 };
