@@ -137,70 +137,92 @@ const [allDrawTickets, setAllDrawTickets] = useState([]);
 });
 
 
-  const fetchSummary = async (selectedDate) => {
-    try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/draw-details`);
-      const tickets = res.data.tickets || [];
-      const filtered = tickets.filter(ticket =>
-        new Date(ticket.createdAt).toISOString().split('T')[0] === selectedDate
-      );
-      let qty10 = 0, qty30 = 0, qty50 = 0;
-      let points10 = 0, points30 = 0, points50 = 0;
-      let totalPoints = 0, totalCommission = 0, netAmount = 0;
-      filtered.forEach(ticket => {
-        qty10 += ticket.total10SeriesCount || 0;
-        qty30 += ticket.total30SeriesCount || 0;
-        qty50 += ticket.total50SeriesCount || 0;
-        points10 += ticket.total10SeriesPoints || 0;
-        points30 += ticket.total30SeriesPoints || 0;
-        points50 += ticket.total50SeriesPoints || 0;
-        totalPoints += ticket.totalPoints || 0;
-        totalCommission += ticket.shopAmount || 0;
-        netAmount += ticket.netAmount || 0;
-      });
-      setSummary({
-        qty10, qty30, qty50,
-        totalQty: qty10 + qty30 + qty50,
-        points10, points30, points50,
-        totalPoints, totalCommission, netAmount
-      });
-    } catch (err) { console.error("Error fetching summary:", err); }
-  };
-
-  const fetchSeriesTables = async (selectedDate, selectedTime) => {
-    try {
-      const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/table-draw-details`,
-        { drawDate: selectedDate },
-        { headers: { "Content-Type": "application/json" } }
-      );
-
-      let tickets = res.data?.tickets || [];
-
-      // If a time is selected, filter on client
-      if (selectedTime) {
-        const want = String(selectedTime).trim();
-        tickets = tickets.filter(t => toTimeArray(t.drawTime).includes(want));
+const fetchSummary = async () => {
+  try {
+    const res = await axios.post(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/draw-details`,
+      {
+        date,                  // 👈 selected date
+        drawTime: time || ""   // 👈 selected time (empty = full day)
       }
+    );
 
-      setSeriesTableData(tickets);
-    } catch (err) {
-      console.error("Error fetching table series:", err?.response?.data || err.message);
-      setSeriesTableData([]);
-    }
-  };
+    const tickets = res.data.tickets || [];
 
-  const fetchAll = async () => {
-    setLoading(true);
-    await Promise.all([fetchSummary(date), fetchSeriesTables(date, time)]);
+    let qty10 = 0, qty30 = 0, qty50 = 0;
+    let points10 = 0, points30 = 0, points50 = 0;
+    let totalPoints = 0, totalCommission = 0, netAmount = 0;
+
+    tickets.forEach(ticket => {
+      qty10 += ticket.total10SeriesCount || 0;
+      qty30 += ticket.total30SeriesCount || 0;
+      qty50 += ticket.total50SeriesCount || 0;
+
+      points10 += ticket.total10SeriesPoints || 0;
+      points30 += ticket.total30SeriesPoints || 0;
+      points50 += ticket.total50SeriesPoints || 0;
+
+      totalPoints += ticket.totalPoints || 0;
+      totalCommission += ticket.shopAmount || 0;
+      netAmount += ticket.netAmount || 0;
+    });
+
+    setSummary({
+      qty10,
+      qty30,
+      qty50,
+      totalQty: qty10 + qty30 + qty50,
+      points10,
+      points30,
+      points50,
+      totalPoints,
+      totalCommission,
+      netAmount
+    });
+
+  } catch (err) {
+    console.error("Summary error:", err);
+  }
+};
+
+
+const fetchSeriesTables = async () => {
+  try {
+    const res = await axios.post(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/table-draw-details`,
+      {
+        drawDate: date,
+        drawTime: time || ""   // 👈 SEND TIME
+      },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    setSeriesTableData(res.data?.tickets || []);
+  } catch (err) {
+    console.error("Table error:", err);
+    setSeriesTableData([]);
+  }
+};
+
+
+const fetchAll = async () => {
+  setLoading(true);
+
+  try {
+    await Promise.allSettled([
+      fetchSummary(),
+      fetchSeriesTables()
+    ]);
+  } finally {
     setLoading(false);
-    // Reset table page to 1 on search
-    setTableStates(s => ({
-      series10: { ...s.series10, page: 1 },
-      series30: { ...s.series30, page: 1 },
-      series50: { ...s.series50, page: 1 },
-    }));
-  };
+  }
+
+  setTableStates({
+    series10: { limit: 10, page: 1 },
+    series30: { limit: 10, page: 1 },
+    series50: { limit: 10, page: 1 },
+  });
+};
 
 
   useEffect(() => {
@@ -217,34 +239,33 @@ const [allDrawTickets, setAllDrawTickets] = useState([]);
 
 
 useEffect(() => {
-  // Get current Indian time (IST)
   const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
   const currentTime = new Date(now);
 
-  // current hours/minutes in 24-hr
   let hours = currentTime.getHours();
   let minutes = currentTime.getMinutes();
 
-  // Round UP to next 15-minute slot:
   const remainder = minutes % 15;
   if (remainder !== 0) {
     minutes += (15 - remainder);
     if (minutes === 60) {
       minutes = 0;
-      hours = (hours + 1) % 24; // rollover to next hour/day
+      hours = (hours + 1) % 24;
     }
   }
 
-  // Format to 12-hour with zero-padded hours and minutes
   const hours12 = hours % 12 === 0 ? 12 : hours % 12;
-  const hourStr = String(hours12).padStart(2, "0");
-  const minuteStr = String(minutes).padStart(2, "0");
   const ampm = hours < 12 ? "AM" : "PM";
-  const slot = `${hourStr}:${minuteStr} ${ampm}`;
+  const slot = `${String(hours12).padStart(2, "0")}:${String(minutes).padStart(2, "0")} ${ampm}`;
 
   setTime(slot);
-  fetchAll();
 }, []);
+
+
+useEffect(() => {
+  if (!date || !time) return;
+  fetchAll();
+}, [date, time]);
 
 
 useEffect(() => {
@@ -789,7 +810,10 @@ const renderModalSeriesTable = (seriesKey, color, title) => {
               // NOTE: change endpoint name if your route is different
               const res = await axios.post(
                 `${process.env.NEXT_PUBLIC_API_BASE_URL}/tickets-by-admin`,
-                { drawTime: modalDrawTime },
+                {
+                  date,                 // 👈 add this
+                  drawTime: modalDrawTime
+                }
               );
 
               console.log(modalDrawTime);

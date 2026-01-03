@@ -418,25 +418,6 @@ const Page = () => {
 
               {/* Slots / Mode / Percentage */}
               <div className="flex items-center gap-4">
-                <span className="text-white font-medium">Mode:</span>
-                <button
-                  onClick={toggleMode}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
-                    isManual
-                      ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
-                      : "bg-gradient-to-r from-green-600 to-blue-600 text-white"
-                  }`}
-                >
-                  {isManual ? (
-                    <>
-                      <FaRegCheckCircle /> Manual
-                    </>
-                  ) : (
-                    <>
-                      <FaRegTimesCircle /> Auto
-                    </>
-                  )}
-                </button>
                 <button
                   onClick={() => setSlotsModalOpen(true)}
                   className="ml-3 px-5 py-3 rounded-xl flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold hover:scale-105 transition-all"

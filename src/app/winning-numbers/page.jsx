@@ -51,33 +51,39 @@ const ClaimedTicketsPage = () => {
   };
 
 
-  // ---- Fetch ALL Pending Claims for today ----
 const fetchAllPendingClaims = async () => {
   setLoading(true);
   try {
-    const res = await axios.post(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/all-pending-claims`
+    const res = await axios.get(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/get-all-pending-claims`
     );
 
-    const pending = res.data?.pendingClaimableTickets || [];
+    const admins = res.data?.adminsWithPendingClaims || [];
 
-    const mapped = pending.map((item, index) => ({
-      sr: index + 1,
-      drawDate: item.drawDate || "N/A",
-      drawTimes: Array.isArray(item.drawTimes)
-        ? item.drawTimes.join(", ")
-        : "N/A",
-      shopName: item.shopName || "--",        
-      quantity: item.matches.reduce((sum, t) => sum + t.quantity, 0),
-      ticketNumbers: item.matches.map((t) => t.number),
-    }));
+    const flattened = [];
 
-    setPendingModalData(mapped);
+    admins.forEach((admin) => {
+      admin.pendingClaimableTickets.forEach((ticket, index) => {
+        flattened.push({
+          drawDate: ticket.drawDate,
+          drawTimes: ticket.drawTimes || [],
+          shopName: admin.shopName,
+          quantity: ticket.matches.reduce(
+            (sum, m) => sum + m.quantity,
+            0
+          ),
+          ticketNumbers: ticket.matches.map((m) => m.number),
+        });
+      });
+    });
+
+    setPendingModalData(flattened);
   } catch (err) {
     console.error("Error loading pending claims:", err);
     setPendingModalData([]);
+  } finally {
+    setLoading(false);
   }
-  setLoading(false);
 };
 
   // Auto-fetch current date data on mount

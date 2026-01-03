@@ -65,11 +65,15 @@
     const handleSetCommissionModalToggle = () => setSetCommissionModalOpen(!setCommissionModalOpenState);
     const handleAddBalanceModalToggle = () => setAddBalanceModalOpen(!addBalanceModalOpenState);
 
-    // ----------------------- INPUT HANDLERS -----------------------
-    const handleInputChange = (e, stateSetter) => {
-      const { name, value } = e.target;
-      stateSetter((prevState) => ({ ...prevState, [name]: value }));
-    };
+const handleInputChange = (e, setter) => {
+  const { name, value } = e.target;
+
+  setter(prev => ({
+    ...prev,
+    [name]: value // ✅ KEEP AS STRING
+  }));
+};
+
 
     // ----------------------- FORM SUBMISSIONS -----------------------
     const handleAddPackage = () => {
@@ -131,20 +135,76 @@ const handleAddSetCommission = async () => {
       }
     };
 
+    // helper for limiting
+    const handleNumberLimitChange = (e, setter, max = 10) => {
+      const { name, value } = e.target;
+
+      // Allow empty value (so user can delete)
+      if (value === "") {
+        setter(prev => ({ ...prev, [name]: "" }));
+        return;
+      }
+
+      const num = Number(value);
+
+      if (isNaN(num)) return;
+
+      // Clamp value between 0 and max
+      const clamped = Math.min(Math.max(num, 0), max);
+
+      setter(prev => ({
+        ...prev,
+        [name]: clamped
+      }));
+    };
+
+
     // ----------------------- DELETE HANDLERS -----------------------
     const handleDeletePackage = (index) => {
       setCommissionPackages(commissionPackages.filter((_, i) => i !== index));
     };
 
-    const handleDeleteSetCommission = async (index) => {
-      const userName = adminCommissions[index].userName;
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_BASE_URL}/delete-admin`, { data: { userName } });
-      await fetchAllMasterData();
-    };
+const handleDeleteSetCommission = async (index) => {
+  const shopName = adminCommissions[index].userName;
 
-    const handleDeleteBalance = (index) => {
-      setBalances(balances.filter((_, i) => i !== index));
-    };
+  if (!shopName) return;
+
+  try {
+    await axios.delete(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/delete-commission`,
+      {
+        data: { shopName }
+      }
+    );
+
+    await fetchAllMasterData(); // refresh table
+  } catch (err) {
+    console.error("Delete commission failed", err);
+    alert("Failed to delete commission");
+  }
+};
+
+
+const handleDeleteBalance = async (index) => {
+  const shopName = balances[index].userName;
+
+  if (!shopName) return;
+
+  try {
+    await axios.delete(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/delete-balance`,
+      {
+        data: { shopName }
+      }
+    );
+
+    await fetchAllMasterData(); // refresh table
+  } catch (err) {
+    console.error("Delete balance failed", err);
+    alert("Failed to delete balance");
+  }
+};
+
 
     // ----------------------- UI COMPONENTS -----------------------
     const Modal = ({ isOpen, onClose, title, children }) => {
@@ -280,12 +340,12 @@ const handleAddSetCommission = async () => {
                     type="number"
                     name="commission"
                     value={newSetCommission.commission}
-                    onChange={(e) => handleInputChange(e, setNewSetCommission)}
+                    onChange={(e) => handleNumberLimitChange(e, setNewSetCommission, 10)}
                     placeholder="Enter Commission (%)"
                     min="0"
                     max="10"
-                    className="w-full"
                   />
+
 
                 </div>
                 <div className="flex justify-end mb-6">
@@ -321,14 +381,15 @@ const handleAddSetCommission = async () => {
                       <option key={index} value={username}>{username}</option>
                     ))}
                   </SelectField>
-                  <InputField
-                    type="number"
-                    name="amount"
-                    value={newBalance.amount}
-                    onChange={(e) => handleInputChange(e, setNewBalance)}
-                    placeholder="Enter Amount"
-                    className="w-full"
-                  />
+<InputField
+  type="number"
+  name="amount"
+  value={newBalance.amount}
+  onChange={(e) => handleInputChange(e, setNewBalance)}
+  placeholder="Enter Amount"
+  className="w-full"
+/>
+
                 </div>
                 <div className="flex justify-end mb-6">
                   <Button onClick={handleAddBalance} className="mr-4">

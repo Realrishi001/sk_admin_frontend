@@ -2,7 +2,6 @@
 import React from "react";
 import { DRAW_TIMES } from "../../data/drawTimes";
 
-// Helper: returns true if draw time is in the past for today
 function isTimePassed(drawTime) {
   // Get today's date
   const now = new Date();
@@ -24,7 +23,6 @@ function isTimePassed(drawTime) {
     0
   );
 
-  // Return true if draw time is before now
   return drawDate < now;
 }
 

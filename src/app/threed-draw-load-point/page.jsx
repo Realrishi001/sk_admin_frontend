@@ -48,10 +48,10 @@ const [showModal, setShowModal] = useState(false);
 
 const [winningRows, setWinningRows] = useState(
   Array.from({ length: 10 }, () => ({
-    number: "",
-    type: "STR"
+    number: ""
   }))
 );
+
 
   const [tableStates, setTableStates] = useState({});
 
@@ -409,49 +409,31 @@ const handleSaveWinning = async () => {
         </button>
       </div>
 
-      {/* INPUT ROWS - Compact */}
-      <div className="p-3 space-y-2 max-h-60 overflow-y-auto">
-        {winningRows.map((row, idx) => (
-          <div key={idx} className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-2 hover:border-blue-300 transition-colors">
-            
-            {/* Number Input - Compact */}
-            <input
-              value={row.number}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, "").slice(0, 3);
-                setWinningRows((p) => {
-                  const copy = [...p];
-                  copy[idx].number = value;
-                  return copy;
-                });
-              }}
-              className="w-16 px-2 py-1 border border-gray-300 rounded text-center font-bold text-sm bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              placeholder="000"
-              maxLength={3}
-            />
+{/* INPUT ROWS */}
+<div className="p-3 space-y-2 max-h-60 grid grid-cols-5 overflow-y-auto">
+  {winningRows.map((row, idx) => (
+    <div
+      key={idx}
+      className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-2"
+    >
+      <input
+        value={row.number}
+        onChange={(e) => {
+          const value = e.target.value.replace(/\D/g, "").slice(0, 3);
+          setWinningRows((p) => {
+            const copy = [...p];
+            copy[idx].number = value;
+            return copy;
+          });
+        }}
+        className="w-full px-3 py-2 border border-gray-300 rounded text-center font-bold text-lg bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+        placeholder="000"
+        maxLength={3}
+      />
+    </div>
+  ))}
+</div>
 
-            {/* Type Select - Compact */}
-            <select
-              value={row.type}
-              onChange={(e) =>
-                setWinningRows((p) => {
-                  const copy = [...p];
-                  copy[idx].type = e.target.value;
-                  return copy;
-                })
-              }
-              className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="STR">STRAIGHT</option>
-              <option value="BOX">BOX</option>
-              <option value="FP">FRONT PAIR</option>
-              <option value="BP">BACK PAIR</option>
-              <option value="SP">SPLIT PAIR</option>
-              <option value="AP">ANY PAIR</option>
-            </select>
-          </div>
-        ))}
-      </div>
 
       {/* BUTTONS */}
       <div className="flex gap-2 p-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">
