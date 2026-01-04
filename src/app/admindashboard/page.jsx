@@ -16,6 +16,7 @@ const Page = () => {
     cancelTickets: 0,
     totalPoints: 0,
     netPoints: 0,
+    pendingClaims : 0,
     winningPoints: 0,
     shopPoints: 0,
     adminAmount: 0
@@ -125,6 +126,7 @@ const Page = () => {
         cancelTickets: resDashboard.data.totalCancelledTickets || 0,
         totalPoints: resPoints.data.totalPointsToday || 0,
         netPoints: resPoints.data.netAmount || 0,
+        pendingClaims: resDashboard.data.pendingClaimTickets || 0,
         winningPoints: resPoints.data.winningAmount || 0,
         shopPoints: resPoints.data.commissionAmount || 0,
         adminAmount: resPoints.data.adminAmount || 0
@@ -221,6 +223,27 @@ const Page = () => {
                     </svg>
                   </div>
                 </div>
+                <div className='absolute -bottom-2 -right-2 w-16 h-16 bg-gradient-to-br from-white/10 to-transparent rounded-full'></div>
+              </div>
+              {/* Pending Claims */}
+              <div className='group relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 overflow-hidden'>
+                <div className='absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 opacity-50'></div>
+
+                <div className='relative z-10 flex items-center justify-between'>
+                  <div className='text-white'>
+                    <h2 className='text-sm font-bold opacity-90 mb-1'>Pending Claims</h2>
+                    <h1 className='text-3xl font-bold'>{stats.pendingClaims}</h1>
+                  </div>
+
+                  <div className='bg-white/20 p-3 rounded-xl backdrop-blur-sm'>
+                    {/* Claim Icon */}
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                      <path d="M9 11l3 3L22 4"/>
+                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                  </div>
+                </div>
+
                 <div className='absolute -bottom-2 -right-2 w-16 h-16 bg-gradient-to-br from-white/10 to-transparent rounded-full'></div>
               </div>
 
